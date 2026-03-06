@@ -1,0 +1,14 @@
+# .NET (C#) İhmal Edilecek Klasörler
+bin/
+obj/
+*.db
+*.db-journal
+*.log
+
+# Node.js / React / Electron İhmal Edilecek Klasörler
+node_modules/
+dist/
+dist-electron/
+npm-debug.log
+.env
+.DS_Store

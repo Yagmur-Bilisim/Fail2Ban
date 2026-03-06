@@ -1,0 +1,6 @@
+@Fail2Ban.API_HostAddress = http://localhost:5009
+
+GET {{Fail2Ban.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
