@@ -1,13 +1,6 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const path = require('path');
 const { autoUpdater } = require('electron-updater');
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const isDev = process.env.IS_DEV === 'true';
 
@@ -41,13 +34,11 @@ function createWindow() {
 // ── Auto Updater ──────────────────────────────────────────────────────────────
 
 function setupAutoUpdater() {
-  // Dev modda güncelleme kontrolü yapma
   if (isDev) return;
 
-  autoUpdater.autoDownload = true;       // Güncelleme bulununca arka planda indir
-  autoUpdater.autoInstallOnAppQuit = true; // Uygulama kapanınca kur
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
 
-  // Renderer'a durum bildir
   const send = (channel, data) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send(channel, data);
@@ -78,7 +69,6 @@ function setupAutoUpdater() {
   autoUpdater.on('update-downloaded', (info) => {
     send('updater:status', { status: 'downloaded', version: info.version });
 
-    // Kullanıcıya sor: hemen kur mu?
     dialog.showMessageBox(mainWindow, {
       type: 'info',
       title: 'Güncelleme Hazır',
@@ -93,7 +83,6 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.on('error', (err) => {
-    // Hata mesajını kategorize et
     let userMessage = err.message;
     let detail = '';
 
@@ -128,12 +117,10 @@ function setupAutoUpdater() {
     });
   });
 
-  // Renderer'dan manuel kontrol isteği
   ipcMain.on('updater:check', () => {
     autoUpdater.checkForUpdates();
   });
 
-  // Uygulama hazır olunca 5 sn bekleyip kontrol et (pencere tam yüklenmeden önce çıkmasın)
   setTimeout(() => autoUpdater.checkForUpdates(), 5000);
 }
 
