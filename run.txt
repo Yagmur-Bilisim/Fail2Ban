@@ -1,9 +1,21 @@
 # API Build (Windows x64 single-file)
 dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o ./bin/publish
 
-# UI - Sadece paketleme (GitHub'a yüklemez)
+# UI - Build & Paketleme
+# Çıktı: Fail2Ban.UI/dist-electron/
 npm run pack:win
 
-# UI - Paketleme + GitHub Release'e yükle (GH_TOKEN gerekli)
-# set GH_TOKEN=github_pat_xxxx
-# npm run release
+# Güncelleme Sunucusu Kurulumu
+# ─────────────────────────────
+# 1. npm run pack:win çalıştır
+# 2. dist-electron/ içindeki şu 2 dosyayı sunucuya koy:
+#      - "Fail2Ban Dashboard Setup x.x.x.exe"
+#      - latest.yml
+# 3. Sunucuda IIS ile şu klasörü static file olarak serve et:
+#      C:\inetpub\wwwroot\fail2ban-update\
+#    URL: https://update.yagmurbilisim.com/fail2ban
+# 4. Yeni sürüm çıkarmak için:
+#    a. package.json içinde "version" değerini artır (örn: 1.5.0 -> 1.6.0)
+#    b. npm run pack:win
+#    c. Yeni .exe ve latest.yml dosyalarını sunucuya koy (eskinin üzerine yaz)
+#    d. Uygulama açık olan kullanıcılar otomatik güncelleme alır

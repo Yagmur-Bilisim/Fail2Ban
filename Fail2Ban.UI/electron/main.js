@@ -93,7 +93,39 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.on('error', (err) => {
-    send('updater:status', { status: 'error', message: err.message });
+    // Hata mesajını kategorize et
+    let userMessage = err.message;
+    let detail = '';
+
+    if (err.message.includes('net::ERR_INTERNET_DISCONNECTED') || err.message.includes('ENOTFOUND') || err.message.includes('ECONNREFUSED')) {
+      userMessage = 'Güncelleme sunucusuna ulaşılamıyor.';
+      detail = 'İnternet bağlantınızı kontrol edin veya daha sonra tekrar deneyin.\n\nDetay: ' + err.message;
+    } else if (err.message.includes('ENOENT') || err.message.includes('latest.yml')) {
+      userMessage = 'Güncelleme dosyası bulunamadı.';
+      detail = 'Sunucuda güncelleme paketi henüz yayınlanmamış olabilir.\n\nDetay: ' + err.message;
+    } else if (err.message.includes('sha512') || err.message.includes('checksum') || err.message.includes('hash')) {
+      userMessage = 'İndirilen dosya bozuk (checksum hatası).';
+      detail = 'İndirme sırasında dosya bozulmuş olabilir. Tekrar deneyiniz.\n\nDetay: ' + err.message;
+    } else if (err.message.includes('certificate') || err.message.includes('SSL') || err.message.includes('CERT')) {
+      userMessage = 'SSL sertifika hatası.';
+      detail = 'Güncelleme sunucusunun SSL sertifikası doğrulanamadı.\n\nDetay: ' + err.message;
+    } else if (err.message.includes('EPERM') || err.message.includes('EACCES') || err.message.includes('permission')) {
+      userMessage = 'Yetki hatası — güncelleme kurulamadı.';
+      detail = 'Uygulamayı yönetici olarak çalıştırmayı deneyin.\n\nDetay: ' + err.message;
+    } else if (err.message.includes('ENOSPC') || err.message.includes('disk')) {
+      userMessage = 'Yetersiz disk alanı.';
+      detail = 'Güncelleme indirmek için yeterli disk alanı yok.\n\nDetay: ' + err.message;
+    }
+
+    send('updater:status', { status: 'error', message: userMessage });
+
+    dialog.showMessageBox(mainWindow, {
+      type: 'error',
+      title: 'Güncelleme Hatası',
+      message: userMessage,
+      detail: detail || err.message,
+      buttons: ['Tamam']
+    });
   });
 
   // Renderer'dan manuel kontrol isteği
