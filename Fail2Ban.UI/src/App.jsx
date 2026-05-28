@@ -14,7 +14,7 @@ const EMPTY_SERVER = { id: null, name: '', url: '', proxy: { host: '', port: '',
 
 function App() {
   const [activeTab, setActiveTab] = useState('banned');
-  const [stats, setStats] = useState({ totalBans: 0, activeBans: 0, reportedBans: 0, todayBans: 0 });
+  const [stats, setStats] = useState({ TotalBans: 0, ActiveBans: 0, ReportedBans: 0, TodayBans: 0 });
   const [bans, setBans] = useState([]);
   const [whitelist, setWhitelist] = useState([]);
   const [logs, setLogs] = useState([]);
@@ -154,7 +154,7 @@ function App() {
         setBans([]);
         setWhitelist([]);
         setLogs([]);
-        setStats({ totalBans: 0, activeBans: 0, reportedBans: 0, todayBans: 0 });
+        setStats({ TotalBans: 0, ActiveBans: 0, ReportedBans: 0, TodayBans: 0 });
       });
     }
   }, [activeServerId]);
@@ -418,10 +418,10 @@ function App() {
             <div className="space-y-6">
               <div className="grid grid-cols-4 gap-4">
                 {[
-                  { label: 'Toplam Ban', value: stats.totalBans, color: 'text-white' },
-                  { label: 'Aktif Ban', value: stats.activeBans, color: 'text-rose-400' },
-                  { label: 'Bugün Engellenen', value: stats.todayBans, color: 'text-blue-400' },
-                  { label: 'AbuseIPDB Raporu', value: stats.reportedBans, color: 'text-purple-400' },
+                  { label: 'Toplam Ban', value: stats.TotalBans, color: 'text-white' },
+                  { label: 'Aktif Ban', value: stats.ActiveBans, color: 'text-rose-400' },
+                  { label: 'Bugün Engellenen', value: stats.TodayBans, color: 'text-blue-400' },
+                  { label: 'AbuseIPDB Raporu', value: stats.ReportedBans, color: 'text-purple-400' },
                 ].map(s => (
                   <div key={s.label} className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5 shadow-sm backdrop-blur">
                     <div className="text-slate-400 text-sm font-medium mb-1">{s.label}</div>
