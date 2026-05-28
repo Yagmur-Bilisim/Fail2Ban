@@ -71,6 +71,7 @@ public class SmtpLogMonitorService : BackgroundService
                 using var scope = _serviceProvider.CreateScope();
                 var dbService = scope.ServiceProvider.GetRequiredService<IDatabaseService>();
                 var abuseService = scope.ServiceProvider.GetRequiredService<IAbuseIPDBService>();
+                var otxService = scope.ServiceProvider.GetRequiredService<IOTXService>();
                 var redisService = scope.ServiceProvider.GetRequiredService<IRedisService>();
                 var fwManager = scope.ServiceProvider.GetRequiredService<IFirewallManager>();
 
@@ -131,7 +132,12 @@ public class SmtpLogMonitorService : BackgroundService
                                     isSpamOk = true; 
                                 else
                                 {
-                                    isSpamOk = await abuseService.CheckIpSpamScoreAsync(clientIp);
+                                    // AbuseIPDB ve OTX paralel sorgula — ikisinden biri tehdit derse yeterli
+                                    var abuseTask = abuseService.CheckIpSpamScoreAsync(clientIp);
+                                    var otxTask   = otxService.CheckIpThreatAsync(clientIp);
+                                    await Task.WhenAll(abuseTask, otxTask);
+                                    isSpamOk = abuseTask.Result || otxTask.Result;
+
                                     if(isSpamOk) await redisService.CacheSpamIpAsync(clientIp, TimeSpan.FromDays(1));
                                     else await redisService.CacheSafeIpAsync(clientIp, TimeSpan.FromMinutes(5));
                                 }

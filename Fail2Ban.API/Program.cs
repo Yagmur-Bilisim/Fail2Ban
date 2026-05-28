@@ -52,6 +52,7 @@ catch (Exception ex)
 // HttpClient & AbuseIPDB
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IAbuseIPDBService, AbuseIPDBService>();
+builder.Services.AddScoped<IOTXService, OTXService>();
 
 // Servisler
 builder.Services.AddScoped<IDatabaseService, DatabaseService>();

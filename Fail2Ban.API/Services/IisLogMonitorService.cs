@@ -77,6 +77,7 @@ public class IisLogMonitorService : BackgroundService
             var fwManager = scope.ServiceProvider.GetRequiredService<IFirewallManager>();
             var redisService = scope.ServiceProvider.GetRequiredService<IRedisService>();
             var abuseService = scope.ServiceProvider.GetRequiredService<IAbuseIPDBService>();
+            var otxService = scope.ServiceProvider.GetRequiredService<IOTXService>();
 
             // En son nerede kaldık? (Pointer)
             long lastPointer = await dbService.GetLogPointerAsync(logFilePath);
@@ -132,10 +133,13 @@ public class IisLogMonitorService : BackgroundService
                         bool isBadUri = uriPath.StartsWith("/.git") || uriPath.StartsWith("/.ssh") || uriPath.EndsWith(".env") || 
                                         uriPath.EndsWith(".sql") || uriPath.EndsWith(".tar.gz") || 
                                         uriPath.Contains("wp-admin");
+
+                        // /api/* path'leri hiçbir zaman banlanmaz — şirket entegrasyonları, ödeme sistemleri vb. bu path'i kullanır
+                        bool isTrustedApiPath = uriPath.StartsWith("/api/", StringComparison.OrdinalIgnoreCase);
                                         
                         // 401 ve 403 yetkilendirme / yasaklı içerik hataları genelde normal kullanıcılardan da kaynaklanabildiği için dışarıda bırakılır.
                         bool isLegitimateError = httpStatus == "401" || httpStatus == "403";
-                        bool isSuspicious = (isBadUserAgent || isBadUri) && !isLegitimateError;
+                        bool isSuspicious = (isBadUserAgent || isBadUri) && !isLegitimateError && !isTrustedApiPath;
                         
                         if (isSuspicious) 
                         {
@@ -157,7 +161,12 @@ public class IisLogMonitorService : BackgroundService
                                 isSpamOk = true; 
                             else
                             {
-                                isSpamOk = await abuseService.CheckIpSpamScoreAsync(clientIp);
+                                // AbuseIPDB ve OTX paralel sorgula — ikisinden biri tehdit derse yeterli
+                                var abuseTask = abuseService.CheckIpSpamScoreAsync(clientIp);
+                                var otxTask   = otxService.CheckIpThreatAsync(clientIp);
+                                await Task.WhenAll(abuseTask, otxTask);
+                                isSpamOk = abuseTask.Result || otxTask.Result;
+
                                 if(isSpamOk) await redisService.CacheSpamIpAsync(clientIp, TimeSpan.FromDays(1));
                                 else await redisService.CacheSafeIpAsync(clientIp, TimeSpan.FromMinutes(5));
                             }

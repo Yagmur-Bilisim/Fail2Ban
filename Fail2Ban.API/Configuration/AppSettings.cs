@@ -6,6 +6,7 @@ public class AppSettings
     public LogIzlemeSettings LogIzleme { get; set; } = new();
     public EventLogIzlemeSettings EventLogIzleme { get; set; } = new();
     public AbuseIPDBSettings AbuseIPDBSettings { get; set; } = new();
+    public OTXSettings OTXSettings { get; set; } = new();
 }
 
 public class Fail2BanSettings
@@ -64,4 +65,16 @@ public class AbuseIPDBSettings
     public bool ReportAktif { get; set; } = true;
     public int MinSpamSkoruSarti { get; set; } = 50; // Abuse Confidence Score 
     public Dictionary<string, string> SistemMesajlari { get; set; } = new();
+}
+
+public class OTXSettings
+{
+    public string ApiKey { get; set; } = "";
+    public string ApiUrl { get; set; } = "https://otx.alienvault.com/api/v1/indicators/IPv4";
+    public bool CheckAktif { get; set; } = true;
+    /// <summary>
+    /// OTX'te kaç farklı pulse (tehdit istihbaratı kaynağı) bu IP'yi işaretlemişse tehdit sayılsın.
+    /// Varsayılan: 1 (herhangi bir pulse yeterliyse ban)
+    /// </summary>
+    public int MinPulseCount { get; set; } = 1;
 }

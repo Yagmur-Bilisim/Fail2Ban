@@ -31,7 +31,7 @@ public class MemoryLogger : ILogger
 public class MemoryLoggerProvider : ILoggerProvider
 {
     private static readonly ConcurrentQueue<string> _logs = new();
-    private const int MaxLogCount = 100;
+    private const int MaxLogCount = 500;
 
     public ILogger CreateLogger(string categoryName)
     {

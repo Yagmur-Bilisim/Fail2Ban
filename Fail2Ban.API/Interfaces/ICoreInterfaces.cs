@@ -40,6 +40,15 @@ public interface IAbuseIPDBService
     Task ReportIpAsync(string ipAddress, string source, int attemptCount);
 }
 
+public interface IOTXService
+{
+    /// <summary>
+    /// OTX AlienVault'ta IP'nin kaç pulse tarafından tehdit olarak işaretlendiğini kontrol eder.
+    /// true → tehdit tespit edildi, ban uygulanmalı.
+    /// </summary>
+    Task<bool> CheckIpThreatAsync(string ipAddress);
+}
+
 public interface IRedisService
 {
     Task<bool> IsCachedSpamIpAsync(string ip);

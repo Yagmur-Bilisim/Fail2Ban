@@ -1,7 +1,7 @@
 {
   "name": "fail2banapp",
   "private": true,
-  "version": "1.4.0",
+  "version": "1.5.0",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
@@ -11,11 +11,19 @@
     "preview": "vite preview",
     "electron": "wait-on tcp:5173 && cross-env IS_DEV=true electron .",
     "start": "concurrently \"npm run dev\" \"npm run electron\"",
-    "pack:win": "vite build && electron-builder --win --x64"
+    "pack:win": "vite build && electron-builder --win --x64",
+    "release": "vite build && electron-builder --win --x64 --publish always"
   },
   "build": {
     "appId": "com.yb.fail2ban",
     "productName": "Fail2Ban Dashboard",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Yagmur-Bilisim",
+        "repo": "Fail2Ban"
+      }
+    ],
     "directories": {
       "output": "dist-electron"
     },
@@ -35,6 +43,7 @@
     }
   },
   "dependencies": {
+    "electron-updater": "^6.8.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

@@ -1,3 +1,9 @@
+# API Build (Windows x64 single-file)
 dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o ./bin/publish
 
-npm run pack:win 
+# UI - Sadece paketleme (GitHub'a yüklemez)
+npm run pack:win
+
+# UI - Paketleme + GitHub Release'e yükle (GH_TOKEN gerekli)
+# set GH_TOKEN=github_pat_xxxx
+# npm run release

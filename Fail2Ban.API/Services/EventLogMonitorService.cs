@@ -84,6 +84,7 @@ public class EventLogMonitorService : BackgroundService
             var redisService = scope.ServiceProvider.GetRequiredService<IRedisService>();
             var fwManager = scope.ServiceProvider.GetRequiredService<IFirewallManager>();
             var abuseService = scope.ServiceProvider.GetRequiredService<IAbuseIPDBService>();
+            var otxService = scope.ServiceProvider.GetRequiredService<IOTXService>();
 
             if (await dbService.IsIpWhitelistedAsync(ip))
             {
@@ -107,13 +108,18 @@ public class EventLogMonitorService : BackgroundService
                 }
                 else
                 {
-                    isSpamOk = await abuseService.CheckIpSpamScoreAsync(ip);
-                    if(isSpamOk) await redisService.CacheSpamIpAsync(ip, TimeSpan.FromDays(1)); // Spam ise 1 gün Redis Cache'de tut     
-                    else await redisService.CacheSafeIpAsync(ip, TimeSpan.FromMinutes(5)); // Safe ise 5 dk redis'te tut.
+                    // AbuseIPDB ve OTX paralel sorgula — ikisinden biri tehdit derse yeterli
+                    var abuseTask = abuseService.CheckIpSpamScoreAsync(ip);
+                    var otxTask   = otxService.CheckIpThreatAsync(ip);
+                    await Task.WhenAll(abuseTask, otxTask);
+                    isSpamOk = abuseTask.Result || otxTask.Result;
+
+                    if(isSpamOk) await redisService.CacheSpamIpAsync(ip, TimeSpan.FromDays(1));
+                    else await redisService.CacheSafeIpAsync(ip, TimeSpan.FromMinutes(5));
                 }
                 
                 // IP Banla (Block)
-                var newBan = await dbService.BanIpAsync(ip, reason + (isSpamOk ? " - (AbuseIPDB Spam Onaylı)" : ""), tryCount, _settings.Fail2BanSettings.EngellemeZamaniDakika);
+                var newBan = await dbService.BanIpAsync(ip, reason + (isSpamOk ? " - (Tehdit İstihbaratı Onaylı)" : ""), tryCount, _settings.Fail2BanSettings.EngellemeZamaniDakika);
                 if (newBan != null)
                 {
                     // Firewall Toplu (Batch) Listesini Güncelle
