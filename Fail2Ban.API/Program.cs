@@ -11,6 +11,12 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+// JSON serializer global ayarı — PascalCase (UI ile uyumlu)
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.PropertyNamingPolicy = null;
+});
+
 // Cihazlar arası erişim veya Electron GUI erişimi için CORS.
 builder.Services.AddCors(options =>
 {
