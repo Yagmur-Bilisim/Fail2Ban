@@ -64,6 +64,7 @@ if (OperatingSystem.IsWindows())
     builder.Services.AddHostedService<EventLogMonitorService>();
     builder.Services.AddHostedService<IisLogMonitorService>();
     builder.Services.AddHostedService<SmtpLogMonitorService>();
+    builder.Services.AddHostedService<DnsLogMonitorService>();
     builder.Services.AddHostedService<BanCleanupService>();
 }
 

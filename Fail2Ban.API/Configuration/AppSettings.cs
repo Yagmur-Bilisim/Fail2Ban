@@ -7,6 +7,7 @@ public class AppSettings
     public EventLogIzlemeSettings EventLogIzleme { get; set; } = new();
     public AbuseIPDBSettings AbuseIPDBSettings { get; set; } = new();
     public OTXSettings OTXSettings { get; set; } = new();
+    public DnsLogIzlemeSettings DnsLogIzleme { get; set; } = new();
 }
 
 public class Fail2BanSettings
@@ -77,4 +78,36 @@ public class OTXSettings
     /// Varsayılan: 1 (herhangi bir pulse yeterliyse ban)
     /// </summary>
     public int MinPulseCount { get; set; } = 1;
+}
+
+public class DnsLogIzlemeSettings
+{
+    public bool Aktif { get; set; } = false;
+
+    /// <summary>
+    /// DNS log dosyasının tam yolu.
+    /// Windows DNS Server: C:\Windows\System32\dns\dns.log
+    /// BIND (named) Windows port: log dosya yolunu buraya girin.
+    /// </summary>
+    public string LogDosyaYolu { get; set; } = @"C:\Windows\System32\dns\dns.log";
+
+    public int GecikmeMs { get; set; } = 10000;
+    public int MaxHataliIstek { get; set; } = 10;
+    public int BanSuresiDakika { get; set; } = 1440;
+
+    /// <summary>
+    /// Eşleştirilecek regex desenleri. Her biri bir tehdit türünü temsil eder.
+    /// named (BIND) ve Windows DNS Server formatları desteklenir.
+    /// </summary>
+    public List<DnsLogFiltre> Filtreler { get; set; } = new();
+}
+
+public class DnsLogFiltre
+{
+    public string Ad { get; set; } = "";
+    /// <summary>
+    /// Regex deseni. IP adresi için (?&lt;ip&gt;...) adlı grubu kullanın.
+    /// </summary>
+    public string Pattern { get; set; } = "";
+    public bool Aktif { get; set; } = true;
 }
