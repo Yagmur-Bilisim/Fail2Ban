@@ -126,20 +126,42 @@ public class IisLogMonitorService : BackgroundService
                         var userAgent = parts.Length > 9 ? parts[9] : ""; // Go-http-client/1.1
                         var httpStatus = parts.Length > 11 ? parts[11] : ""; // 404 vb.
                         
-                        // User Agent Tanınmayanları Doğrudan Blokla
-                        bool isBadUserAgent = userAgent == "-" || userAgent.Contains("Go-http-client") || userAgent.Contains("libredtail") || userAgent.Contains("curl") || userAgent.Contains("wget") || userAgent.Contains("python-requests") || userAgent.Contains("zgrab");
+                        // User Agent Tanınmayanları / Saldırı Botlarını Belirle
+                        // Not: userAgent == "-" tek başına masum statik dosya / PDF indirmelerinde görülebilir, tek başına anında ban tetiklememeli.
+                        bool isKnownAttackBot = userAgent.Contains("Go-http-client", StringComparison.OrdinalIgnoreCase) || 
+                                                userAgent.Contains("libredtail", StringComparison.OrdinalIgnoreCase) || 
+                                                userAgent.Contains("zgrab", StringComparison.OrdinalIgnoreCase) || 
+                                                userAgent.Contains("python-requests", StringComparison.OrdinalIgnoreCase) || 
+                                                userAgent.Contains("curl", StringComparison.OrdinalIgnoreCase) || 
+                                                userAgent.Contains("wget", StringComparison.OrdinalIgnoreCase);
                         
                         // Kötü niyetli path kontrolleri (Örn: /php_info.php, /hello.world, .php uzantılı riskli yollar ekstra eklenebilir)
-                        bool isBadUri = uriPath.StartsWith("/.git") || uriPath.StartsWith("/.ssh") || uriPath.EndsWith(".env") || 
-                                        uriPath.EndsWith(".sql") || uriPath.EndsWith(".tar.gz") || 
-                                        uriPath.Contains("wp-admin");
+                        bool isBadUri = uriPath.StartsWith("/.git", StringComparison.OrdinalIgnoreCase) || 
+                                        uriPath.StartsWith("/.ssh", StringComparison.OrdinalIgnoreCase) || 
+                                        uriPath.EndsWith(".env", StringComparison.OrdinalIgnoreCase) || 
+                                        uriPath.EndsWith(".sql", StringComparison.OrdinalIgnoreCase) || 
+                                        uriPath.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase) || 
+                                        uriPath.Contains("wp-admin", StringComparison.OrdinalIgnoreCase);
 
                         // /api/* path'leri hiçbir zaman banlanmaz — şirket entegrasyonları, ödeme sistemleri vb. bu path'i kullanır
                         bool isTrustedApiPath = uriPath.StartsWith("/api/", StringComparison.OrdinalIgnoreCase);
+
+                        // /uploads/ ve statik medya/döküman yolları (PDF, resim vb.) silinmiş veya bulunamamış (404) olabilir; saldırı sayılmaz
+                        bool isStaticOrMedia = uriPath.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase) ||
+                                               uriPath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ||
+                                               uriPath.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                                               uriPath.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                                               uriPath.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                                               uriPath.EndsWith(".webp", StringComparison.OrdinalIgnoreCase);
                                         
                         // 401 ve 403 yetkilendirme / yasaklı içerik hataları genelde normal kullanıcılardan da kaynaklanabildiği için dışarıda bırakılır.
                         bool isLegitimateError = httpStatus == "401" || httpStatus == "403";
-                        bool isSuspicious = (isBadUserAgent || isBadUri) && !isLegitimateError && !isTrustedApiPath;
+                        
+                        // Kritik Anında Ban Şartı:
+                        // Ya doğrudan bilinen saldırı path'i taranıyor olmalı (isBadUri)
+                        // Ya da açık saldırı botuyla (isKnownAttackBot) statik olmayan bir yer taranıyor olmalı.
+                        // Statik medya 404'leri veya boş user-agent tek başına asla anında ban tetiklemez!
+                        bool isSuspicious = !isTrustedApiPath && !isLegitimateError && !isStaticOrMedia && (isBadUri || isKnownAttackBot);
                         
                         if (isSuspicious) 
                         {
@@ -149,7 +171,7 @@ public class IisLogMonitorService : BackgroundService
                             if(await dbService.IsIpWhitelistedAsync(clientIp)) continue;
                             if(await dbService.IsIpBannedAsync(clientIp)) continue;
 
-                            string catchReason = isBadUserAgent ? "Zararlı Yazılım / Bot" : "Şüpheli Dizin Taraması";
+                            string catchReason = isKnownAttackBot ? "Zararlı Yazılım / Bot" : "Şüpheli Dizin Taraması";
                             // Sadece log kaydı tutmak (DB'de istatistik için) sayacı artırıyoruz ama ban için sayacı beklemiyoruz.
                             var tryCount = await dbService.RecordFailedAttemptAsync(clientIp, "IIS Log - " + catchReason);
                             

@@ -2,9 +2,51 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 
+const axios = require('axios');
+const { HttpProxyAgent } = require('http-proxy-agent');
+const { HttpsProxyAgent } = require('https-proxy-agent');
+
 const isDev = process.env.IS_DEV === 'true';
 
 let mainWindow;
+
+// ── Proxy Destekli API Fetch IPC Handler ──────────────────────────────────────
+ipcMain.handle('api:proxy-fetch', async (event, { url, options = {}, proxy = null }) => {
+  try {
+    const method = (options.method || 'GET').toUpperCase();
+    const config = {
+      url,
+      method,
+      data: options.body,
+      headers: { ...(options.headers || {}) },
+      timeout: 12000,
+      validateStatus: () => true
+    };
+
+    if (proxy && proxy.host && proxy.port) {
+      const auth = (proxy.user || proxy.pass)
+        ? `${encodeURIComponent(proxy.user)}:${encodeURIComponent(proxy.pass)}@`
+        : '';
+      const proxyUrl = `http://${auth}${proxy.host}:${proxy.port}`;
+      config.httpAgent = new HttpProxyAgent(proxyUrl);
+      config.httpsAgent = new HttpsProxyAgent(proxyUrl);
+      config.proxy = false;
+    } else {
+      config.proxy = false;
+    }
+
+    const res = await axios(config);
+    return {
+      status: res.status,
+      statusText: res.statusText,
+      data: res.data
+    };
+  } catch (err) {
+    return {
+      error: err.message || 'Ağ Hatası'
+    };
+  }
+});
 
 function createWindow() {
   mainWindow = new BrowserWindow({

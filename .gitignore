@@ -12,3 +12,7 @@ dist-electron/
 npm-debug.log
 .env
 .DS_Store
+
+.vs/
+*.user
+*.suo

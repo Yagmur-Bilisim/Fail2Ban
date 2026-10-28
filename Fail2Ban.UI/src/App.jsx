@@ -1,9 +1,35 @@
 import { useState, useEffect, useRef, useCallback, startTransition } from 'react';
 
-// Proxy destekli fetch yardımcısı
-// Tarayıcı ortamında gerçek proxy tüneli kurulamaz; proxy bilgisi
-// ileride bir Electron/Node katmanına iletilebilir. Şimdilik doğrudan fetch.
-async function proxyFetch(url, options = {}) {
+// Proxy destekli fetch yardımcısı (Electron Main Process IPC üzerinden Node.js proxy agent kullanır)
+async function proxyFetch(url, options = {}, proxy = null) {
+  if (ipcRenderer) {
+    try {
+      const response = await ipcRenderer.invoke('api:proxy-fetch', {
+        url,
+        options: {
+          method: options.method || 'GET',
+          headers: options.headers,
+          body: options.body
+        },
+        proxy
+      });
+
+      if (response && response.error) {
+        throw new Error(response.error);
+      }
+
+      return {
+        ok: response.status >= 200 && response.status < 300,
+        status: response.status,
+        statusText: response.statusText,
+        json: async () => response.data,
+        text: async () => (typeof response.data === 'string' ? response.data : JSON.stringify(response.data))
+      };
+    } catch (err) {
+      console.warn('IPC Proxy fetch error:', err);
+      throw err;
+    }
+  }
   return fetch(url, options);
 }
 
@@ -61,7 +87,10 @@ function App() {
   });
   const [activeServerId, setActiveServerId] = useState(servers[0]?.id || 1);
   const activeServer = servers.find(s => s.id === activeServerId) || servers[0];
-  const API_BASE_URL = activeServer?.url || 'http://localhost:5009/api';
+    const API_BASE_URL = activeServer?.url || 'http://localhost:5009/api';
+  const apiFetch = useCallback((url, options = {}) => {
+    return proxyFetch(url, options, activeServer?.proxy);
+  }, [activeServer?.proxy]);
 
   useEffect(() => {
     localStorage.setItem('fail2ban_servers', JSON.stringify(servers));
@@ -94,7 +123,7 @@ function App() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const res = await proxyFetch(`${API_BASE_URL}/stats`);
+      const res = await apiFetch(`${API_BASE_URL}/stats`);
       const data = await res.json();
       setStats(data);
       setIsApiConnected(true);
@@ -105,7 +134,7 @@ function App() {
 
   const fetchBans = useCallback(async () => {
     try {
-      const res = await proxyFetch(`${API_BASE_URL}/bans`);
+      const res = await apiFetch(`${API_BASE_URL}/bans`);
       const data = await res.json();
       setBans(data);
     } catch { /* bağlantı hatası sessizce geçilir */ }
@@ -113,7 +142,7 @@ function App() {
 
   const fetchWhitelist = useCallback(async () => {
     try {
-      const res = await proxyFetch(`${API_BASE_URL}/whitelist`);
+      const res = await apiFetch(`${API_BASE_URL}/whitelist`);
       const data = await res.json();
       setWhitelist(data);
     } catch { /* bağlantı hatası sessizce geçilir */ }
@@ -121,7 +150,7 @@ function App() {
 
   const fetchLogs = useCallback(async () => {
     try {
-      const res = await proxyFetch(`${API_BASE_URL}/logs`);
+      const res = await apiFetch(`${API_BASE_URL}/logs`);
       const data = await res.json();
       setLogs(data);
     } catch { /* bağlantı hatası sessizce geçilir */ }
@@ -167,7 +196,7 @@ function App() {
 
   const handeUnban = async (ip) => {
     try {
-      await proxyFetch(`${API_BASE_URL}/bans/${ip}`, { method: 'DELETE' });
+      await apiFetch(`${API_BASE_URL}/bans/${ip}`, { method: 'DELETE' });
       fetchBans();
       fetchStats();
     } catch { /* sessiz */ }
@@ -175,14 +204,14 @@ function App() {
 
   const handleRemoveWhitelist = async (ip) => {
     try {
-      await proxyFetch(`${API_BASE_URL}/whitelist/${ip}`, { method: 'DELETE' });
+      await apiFetch(`${API_BASE_URL}/whitelist/${ip}`, { method: 'DELETE' });
       fetchWhitelist();
     } catch { /* sessiz */ }
   };
 
   const handleAddToWhitelist = async (ip) => {
     try {
-      await proxyFetch(`${API_BASE_URL}/whitelist?ip=${ip}&desc=Manuel_Eklendi`, { method: 'POST' });
+      await apiFetch(`${API_BASE_URL}/whitelist?ip=${ip}&desc=Manuel_Eklendi`, { method: 'POST' });
       if (activeTab === 'banned') fetchBans();
     } catch { /* sessiz */ }
   };
@@ -223,10 +252,10 @@ function App() {
     if (!modalIp) return;
     try {
       if (activeTab === 'whitelist') {
-        await proxyFetch(`${API_BASE_URL}/whitelist?ip=${modalIp}&desc=${modalReason || 'Manuel Beyaz Liste'}`, { method: 'POST' });
+        await apiFetch(`${API_BASE_URL}/whitelist?ip=${modalIp}&desc=${modalReason || 'Manuel Beyaz Liste'}`, { method: 'POST' });
         fetchWhitelist();
       } else {
-        await proxyFetch(`${API_BASE_URL}/bans?ip=${modalIp}&reason=${modalReason || 'Manuel Engelleme'}&duration=1440`, { method: 'POST' });
+        await apiFetch(`${API_BASE_URL}/bans?ip=${modalIp}&reason=${modalReason || 'Manuel Engelleme'}&duration=1440`, { method: 'POST' });
         fetchBans();
         fetchStats();
       }
