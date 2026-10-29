@@ -29,18 +29,18 @@ npm run pack:win
 # ------------------------------------------------------------------------------
 # GitHub'a yeni sürüm etiketini gönderin:
 git add .
-git commit -m "chore: release v1.7.3"
-git tag v1.7.3
+git commit -m "chore: release v1.7.4"
+git tag v1.7.4
 git push origin master --tags
 
 
 # 4. GİTHUB RELEASES İLE YAYINLAMA (KULLANICILARA OTOMATİK GÜNCELLEME)
 # ------------------------------------------------------------------------------
 # Adım 1: GitHub Release oluşturma sayfasına gidin:
-#   https://github.com/Yagmur-Bilisim/Fail2Ban/releases/new?tag=v1.7.3
+#   https://github.com/Yagmur-Bilisim/Fail2Ban/releases/new?tag=v1.7.4
 #
 # Adım 2: "Fail2Ban.UI/dist-electron/" klasöründeki şu 2 dosyayı sürükleyip bırakın:
-#   - Fail2Ban-Dashboard-Setup-1.7.3.exe
+#   - Fail2Ban-Dashboard-Setup-1.7.4.exe
 #   - latest.yml
 #
 # Adım 3: "Publish release" butonuna basın.
