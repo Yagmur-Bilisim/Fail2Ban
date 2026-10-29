@@ -76,14 +76,25 @@ function App() {
 
   // Server Management
   const [servers, setServers] = useState(() => {
-    const saved = localStorage.getItem('fail2ban_servers');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      // Eski kayıtlarda proxy alanı yoksa ekle
-      return parsed.map(s => ({ proxy: { host: '', port: '', user: '', pass: '' }, ...s }));
-    }
     const defaultUrl = import.meta.env.VITE_API_URL || 'http://localhost:5009/api';
-    return [{ id: 1, name: 'Ana Sunucu', url: defaultUrl, proxy: { host: '', port: '', user: '', pass: '' } }];
+    const fallback = [{ id: 1, name: 'Ana Sunucu', url: defaultUrl, proxy: { host: '', port: '', user: '', pass: '' } }];
+    try {
+      const saved = localStorage.getItem('fail2ban_servers');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map(s => ({
+            id: s.id || Date.now(),
+            name: s.name || 'Sunucu',
+            url: s.url || defaultUrl,
+            proxy: { host: '', port: '', user: '', pass: '', ...(s.proxy || {}) }
+          }));
+        }
+      }
+    } catch (e) {
+      console.warn('Sunucu listesi okunamadı, varsayılan yüklendi:', e);
+    }
+    return fallback;
   });
   const [activeServerId, setActiveServerId] = useState(servers[0]?.id || 1);
   const activeServer = servers.find(s => s.id === activeServerId) || servers[0];
@@ -135,26 +146,38 @@ function App() {
   const fetchBans = useCallback(async () => {
     try {
       const res = await apiFetch(`${API_BASE_URL}/bans`);
-      const data = await res.json();
-      setBans(data);
-    } catch { /* bağlantı hatası sessizce geçilir */ }
-  }, [API_BASE_URL]);
+      if (res && res.ok) {
+        const data = await res.json();
+        setBans(Array.isArray(data) ? data : []);
+      } else {
+        setBans([]);
+      }
+    } catch { setBans([]); }
+  }, [API_BASE_URL, apiFetch]);
 
   const fetchWhitelist = useCallback(async () => {
     try {
       const res = await apiFetch(`${API_BASE_URL}/whitelist`);
-      const data = await res.json();
-      setWhitelist(data);
-    } catch { /* bağlantı hatası sessizce geçilir */ }
-  }, [API_BASE_URL]);
+      if (res && res.ok) {
+        const data = await res.json();
+        setWhitelist(Array.isArray(data) ? data : []);
+      } else {
+        setWhitelist([]);
+      }
+    } catch { setWhitelist([]); }
+  }, [API_BASE_URL, apiFetch]);
 
   const fetchLogs = useCallback(async () => {
     try {
       const res = await apiFetch(`${API_BASE_URL}/logs`);
-      const data = await res.json();
-      setLogs(data);
-    } catch { /* bağlantı hatası sessizce geçilir */ }
-  }, [API_BASE_URL]);
+      if (res && res.ok) {
+        const data = await res.json();
+        setLogs(Array.isArray(data) ? data : []);
+      } else {
+        setLogs([]);
+      }
+    } catch { setLogs([]); }
+  }, [API_BASE_URL, apiFetch]);
 
   useEffect(() => {
     startTransition(() => {
@@ -265,19 +288,24 @@ function App() {
     } catch (err) { console.error('Ekleme Hatası', err); }
   };
 
-  const uniqueReasons = [...new Set(bans.map(b => b.reason))];
-  const sortedBans = [...bans].sort((a, b) => new Date(b.bannedAt) - new Date(a.bannedAt));
+  const safeBans = Array.isArray(bans) ? bans : [];
+  const safeWhitelist = Array.isArray(whitelist) ? whitelist : [];
+  const safeLogs = Array.isArray(logs) ? logs : [];
+  const safeServers = Array.isArray(servers) ? servers : [];
+
+  const uniqueReasons = [...new Set(safeBans.map(b => b?.reason).filter(Boolean))];
+  const sortedBans = [...safeBans].sort((a, b) => new Date(b?.bannedAt || 0) - new Date(a?.bannedAt || 0));
   const filteredBans = sortedBans
-    .filter(b => b.ipAddress.includes(searchTerm) || b.reason.toLowerCase().includes(searchTerm.toLowerCase()))
+    .filter(b => (b?.ipAddress || '').includes(searchTerm) || (b?.reason || '').toLowerCase().includes(searchTerm.toLowerCase()))
     .filter(b => filterReason === '' || b.reason === filterReason);
 
   const POSTS_PER_PAGE = 20;
-  const totalPages = Math.ceil(filteredBans.length / POSTS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(filteredBans.length / POSTS_PER_PAGE));
   const displayedBans = filteredBans.slice((currentPage - 1) * POSTS_PER_PAGE, currentPage * POSTS_PER_PAGE);
 
   const filteredLogs = logSearch
-    ? logs.filter(l => l.toLowerCase().includes(logSearch.toLowerCase()))
-    : logs;
+    ? safeLogs.filter(l => (typeof l === 'string' ? l : JSON.stringify(l)).toLowerCase().includes(logSearch.toLowerCase()))
+    : safeLogs;
 
   const inputCls = "w-full bg-slate-900 border border-slate-700 rounded-md px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 placeholder-slate-600";
   const labelCls = "block text-xs font-medium text-slate-400 mb-1";
@@ -310,7 +338,7 @@ function App() {
           <select value={activeServerId}
             onChange={(e) => e.target.value === 'add_new' ? openAddServer() : setActiveServerId(Number(e.target.value))}
             className="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-sm text-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
-            {servers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            {safeServers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             <option value="add_new" className="font-bold text-blue-400">+ Yeni Sunucu Bağla...</option>
           </select>
 
@@ -517,7 +545,7 @@ function App() {
                   <tbody className="divide-y divide-slate-700/50 text-sm text-slate-300">
                     {whitelist.filter(w => w.ipAddress.includes(searchTerm) || (w.description && w.description.toLowerCase().includes(searchTerm.toLowerCase()))).length === 0 ? (
                       <tr><td colSpan="4" className="px-6 py-8 text-center text-slate-500">Beyaz liste boş veya aramanıza uygun sonuç bulunamadı.</td></tr>
-                    ) : whitelist.filter(w => w.ipAddress.includes(searchTerm) || (w.description && w.description.toLowerCase().includes(searchTerm.toLowerCase()))).map(w => (
+                    ) : safeWhitelist.filter(w => w.ipAddress.includes(searchTerm) || (w.description && w.description.toLowerCase().includes(searchTerm.toLowerCase()))).map(w => (
                       <tr key={w.id} className="hover:bg-slate-800/50 transition-colors group">
                         <td className="px-6 py-4 font-mono font-medium text-green-400">{w.ipAddress}</td>
                         <td className="px-6 py-4">{w.description}</td>
