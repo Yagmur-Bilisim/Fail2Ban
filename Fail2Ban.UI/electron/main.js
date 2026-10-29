@@ -3,12 +3,14 @@ const path = require('path');
 const { autoUpdater } = require('electron-updater');
 
 const axios = require('axios');
-const { HttpProxyAgent } = require('http-proxy-agent');
-const { HttpsProxyAgent } = require('https-proxy-agent');
 
 const isDev = process.env.IS_DEV === 'true';
 
 let mainWindow;
+
+process.on('uncaughtException', (err) => {
+  console.error('Main process uncaught exception:', err);
+});
 
 // ── Proxy Destekli API Fetch IPC Handler ──────────────────────────────────────
 ipcMain.handle('api:proxy-fetch', async (event, { url, options = {}, proxy = null }) => {
@@ -24,13 +26,15 @@ ipcMain.handle('api:proxy-fetch', async (event, { url, options = {}, proxy = nul
     };
 
     if (proxy && proxy.host && proxy.port) {
-      const auth = (proxy.user || proxy.pass)
-        ? `${encodeURIComponent(proxy.user)}:${encodeURIComponent(proxy.pass)}@`
-        : '';
-      const proxyUrl = `http://${auth}${proxy.host}:${proxy.port}`;
-      config.httpAgent = new HttpProxyAgent(proxyUrl);
-      config.httpsAgent = new HttpsProxyAgent(proxyUrl);
-      config.proxy = false;
+      config.proxy = {
+        protocol: 'http',
+        host: proxy.host,
+        port: parseInt(proxy.port, 10),
+        auth: (proxy.user || proxy.pass) ? {
+          username: proxy.user || '',
+          password: proxy.pass || ''
+        } : undefined
+      };
     } else {
       config.proxy = false;
     }
